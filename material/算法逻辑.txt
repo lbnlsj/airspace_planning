@@ -1,0 +1,103 @@
+Algorithm: NeuroFlight Optimizer (Neural Branching and Neural Diving for Flight Schedule Optimization)
+Input:
+
+F flights indexed by [F]
+S sectors indexed by [S]
+T time slots
+η learning rate
+E_ND epochs for Neural Diving training
+E_NB epochs for Neural Branching training
+I iterations for optimization
+λ regularization parameter
+α exploration-exploitation balance parameter
+
+Initialize:
+
+Load flight data D = {(fi, ti_in, ti_out, ri)}i=1^F, where ri is route information
+Load sector capacity data C = {(sj, cj(t))}j=1^S, t∈[T], where cj(t) is time-varying capacity
+Initialize Neural Diving model ND with parameters θND
+Initialize Neural Branching model NB with parameters θNB
+
+Neural Network Architecture:
+5. Neural Diving model ND:
+input_ND = [f, t_in, t_out, r]
+h1_ND = ReLU(W1_ND * input_ND + b1_ND)
+h2_ND = ReLU(W2_ND * h1_ND + b2_ND)
+output_ND = W3_ND * h2_ND + b3_ND
+
+Neural Branching model NB:
+input_NB = [f, t_in, t_out, r]
+h1_NB = ReLU(W1_NB * input_NB + b1_NB)
+h2_NB = ReLU(W2_NB * h1_NB + b2_NB)
+output_NB = Sigmoid(W3_NB * h2_NB + b3_NB)
+
+Neural Network Training:
+7. for e = 1 to E_ND do
+8.     for batch b in D do
+9.         Compute loss: LND = 1/|b| ∑(f,t_in,t_out,r)∈b [MSE(ND(f,t_in,t_out,r; θND), target_delay) + λ * L2(θND)]
+10.        Update parameters: θND ← θND - η∇θNDLND
+11.    end for
+12. end for
+
+13.for e = 1 to E_NB do
+14.for batch b in D do
+
+15. Compute loss: LNB = 1/|b| ∑(f,t_in,t_out,r)∈b [BCE(NB(f,t_in,t_out,r; θNB), branch_decision) + λ * L2(θNB)]
+
+16.Update parameters: θNB ← θNB - η∇θNBLNB
+17.end for
+18.end for
+
+19.Optimization Process:
+19. Initialize best schedule S* = D
+20. Initialize best delay d* = ∞
+21. for i = 1 to I do
+22.    S_current = D
+23.    // Neural Diving Phase
+24.    for f in F do
+25.        delay_prediction = ND(f, tf_in, tf_out, rf; θND)
+26.        Explore delay: delay = α * delay_prediction + (1-α) * random_delay()
+27.        Apply delay: S_current[f] ← S_current[f] + delay
+28.    end for
+29.    // Neural Branching Phase
+30.    for f in F do
+31.        branch_decision = NB(f, tf_in, tf_out, rf; θNB)
+32.        if branch_decision[0] > 0.5 then
+33.            S_current[f] ← S_current[f] - small_delay
+34.        elif branch_decision[1] > 0.5 then
+35.            S_current[f] ← S_current[f] + small_delay
+36.        end if
+37.    end for
+38.    // Constraint Check and Best Schedule Update
+39.    if check_constraints(S_current, C) then
+40.        d_current = calculate_average_delay(S_current, D)
+41.        if d_current < d* then
+42.            S* ← S_current
+43.            d* ← d_current
+44.        end if
+45.    end if
+46.    // Adaptive Learning
+47.    Update α based on optimization performance
+48. end for
+Output: Optimized schedule S* and best average delay d*
+Definitions and Explanations:
+49. Neural Diving model ND: Predicts continuous delay values
+ND(f, t_in, t_out, r; θND) = MLP(concat(f, t_in, t_out, r); θND)
+50. Neural Branching model NB: Predicts binary branching decisions
+NB(f, t_in, t_out, r; θNB) = sigmoid(MLP(concat(f, t_in, t_out, r); θNB))
+51. MSE: Mean Squared Error loss for Neural Diving
+MSE(y_pred, y_true) = 1/n ∑i=1^n (y_pred_i - y_true_i)^2
+52. BCE: Binary Cross-Entropy loss for Neural Branching
+BCE(y_pred, y_true) = -1/n ∑i=1^n [y_true_i log(y_pred_i) + (1-y_true_i) log(1-y_pred_i)]
+53. L2 regularization: L2(θ) = ∑i θi^2
+54. check_constraints(S, C): Verifies sector capacity constraints
+∀s ∈ S, ∀t ∈ T: ∑f∈F 1[f in s at t] ≤ cs(t)
+55. calculate_average_delay(S_current, D):
+avg_delay = 1/F ∑f∈F (S_current[f] - D[f])
+56. random_delay(): Generates a random delay within a predefined range
+57. The Neural Diving model (ND) predicts continuous delay values for each flight
+58. The Neural Branching model (NB) makes binary decisions for small adjustments
+59. The optimization process combines both models to explore the solution space effectively
+60. Constraint checking ensures that the modified schedule respects time-varying sector capacities
+61. The algorithm iteratively improves the schedule, keeping track of the best solution found
+62. Adaptive learning allows the algorithm to balance exploration and exploitation during optimization
